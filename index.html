@@ -6,7 +6,6 @@
     <title>Math Vocab Defender - Co-Op</title>
     <script src="https://tailwindcss.com"></script>
     <script src="https://cloudflare.com"></script>
-    <!-- PeerJS Networking Script Added Below -->
     <script src="https://unpkg.com"></script>
     <style>
         @import url('https://googleapis.com');
@@ -169,12 +168,11 @@
             border: 2px solid #3b82f6;
             color: #60a5fa;
             font-family: inherit;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             padding: 10px;
             text-align: center;
-            width: 200px;
+            width: 260px;
             margin-bottom: 15px;
-            text-transform: uppercase;
         }
     </style>
 </head>
@@ -213,8 +211,8 @@
         <!-- Lobby Screen -->
         <div id="lobby-screen" class="overlay hidden">
             <h1 class="title-text text-blue-400">CO-OP LOBBY</h1>
-            <p class="mb-4">Give this code to your partner:</p>
-            <div id="lobby-code" class="text-4xl text-yellow-400 mb-8 tracking-widest bg-gray-800 p-4 rounded border-2 border-gray-600">----</div>
+            <p class="mb-4">Give this exact Room ID to your partner:</p>
+            <div id="lobby-code" class="text-xs text-yellow-400 mb-8 break-all bg-gray-800 p-4 rounded border-2 border-gray-600 select-all font-sans">Generating...</div>
             <p class="text-green-400 animate-pulse mb-8">Waiting for player 2 to join...</p>
             <button id="btn-cancel-host" class="btn text-sm p-3">CANCEL</button>
         </div>
@@ -222,9 +220,9 @@
         <!-- Join Screen -->
         <div id="join-screen" class="overlay hidden">
             <h1 class="title-text text-purple-400">JOIN CO-OP</h1>
-            <p class="mb-4">Enter Room Code:</p>
-            <input type="text" id="join-input" class="input-box" maxlength="4" placeholder="ABCD" autocomplete="off">
-            <div id="join-error" class="text-red-400 mb-4 h-6"></div>
+            <p class="mb-4">Enter Partner's Room ID:</p>
+            <input type="text" id="join-input" class="input-box font-sans text-sm" placeholder="Paste long ID here" autocomplete="off">
+            <div id="join-error" class="text-red-400 mb-4 h-6 text-xs"></div>
             <button id="btn-connect" class="btn purple mb-4">CONNECT</button>
             <button id="btn-cancel-join" class="btn text-sm p-3">CANCEL</button>
         </div>
@@ -237,7 +235,6 @@
         </div>
     </div>
 
-    <!-- Mobile Controls Layer -->
     <div id="mobile-controls">
         <div class="flex gap-4">
             <button id="left-btn" class="control-btn">◀</button>
@@ -247,7 +244,6 @@
     </div>
 
     <script>
-        // --- MULTIPLAYER SIGNALLING HOOK ---
         const authLoading = document.getElementById('auth-loading');
         const menuButtons = document.getElementById('menu-buttons');
         
@@ -257,22 +253,29 @@
 
         function initMultiplayer() {
             try {
-                // Generate a random 4-letter room code
-                const randomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-                
-                peer = new Peer(randomId, {
-                    debug: 1
-                });
+                // Leaving Peer parameters empty lets the server assign an absolute unique safe ID
+                peer = new Peer({ debug: 1 });
 
                 peer.on('open', (id) => {
-                    console.log('Connected to PeerJS server. Room ID:', id);
+                    console.log('Successfully active on PeerJS Cloud. ID:', id);
                     document.getElementById('lobby-code').innerText = id;
                     showMenu();
                 });
 
                 peer.on('error', (err) => {
-                    console.error('PeerJS error encountered:', err);
-                    showMenu(); // Show menu even if connection fails so singleplayer functions
+                    console.error('Handshake Error:', err);
+                    showMenu(); 
                 });
 
                 peer.on('connection', (incomingConn) => {
+                    conn = incomingConn;
+                    setupConnection();
+                });
+
+            } catch (e) {
+                console.error("Crash fallback mode activated.", e);
+                showMenu();
+            }
+        }
+
+        function showMenu() {
