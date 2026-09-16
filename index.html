@@ -6,7 +6,8 @@
     <title>Math Vocab Defender - Co-Op</title>
     <script src="https://tailwindcss.com"></script>
     <script src="https://cloudflare.com"></script>
-    <script src="https://unpkg.com"></script>
+    <!-- Robust, industry-standard secure CDN link -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
     <style>
         @import url('https://googleapis.com');
 
@@ -112,14 +113,6 @@
             box-shadow: 0 0 0 transparent;
         }
 
-        .btn:disabled {
-            background: #6b7280;
-            border-color: #374151;
-            box-shadow: 0 6px 0 #1f2937;
-            cursor: not-allowed;
-            color: #9ca3af;
-        }
-
         .title-text {
             color: #60a5fa;
             text-shadow: 4px 4px 0px #1e3a8a, 0 0 20px rgba(96, 165, 250, 0.8);
@@ -131,44 +124,12 @@
         .inst-text { font-size: 0.8rem; line-height: 1.8; color: #d1d5db; max-width: 90%; }
         @media (min-width: 768px) { .title-text { font-size: 3rem; } .inst-text { font-size: 1rem; } }
 
-        #mobile-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            box-sizing: border-box;
-            pointer-events: none;
-        }
-
-        .control-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            pointer-events: auto;
-            color: white;
-            font-size: 24px;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .control-btn:active { background: rgba(255, 255, 255, 0.4); }
-        #shoot-btn { width: 70px; height: 70px; border-radius: 10px; background: rgba(239, 68, 68, 0.3); border-color: rgba(239, 68, 68, 0.6); }
-        @media (min-width: 768px) { #mobile-controls { display: none; } }
-
         .input-box {
             background: #111827;
             border: 2px solid #3b82f6;
             color: #60a5fa;
             font-family: inherit;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             padding: 10px;
             text-align: center;
             width: 260px;
@@ -201,7 +162,8 @@
             
             <div id="auth-loading" class="text-yellow-400 mb-4 animate-pulse">Connecting to servers...</div>
 
-            <div id="menu-buttons" class="hidden flex-col items-center w-full">
+            <!-- Buttons start visible with fallback mechanics -->
+            <div id="menu-buttons" class="flex flex-col items-center w-full hidden">
                 <button id="btn-single" class="btn mb-2">SINGLE PLAYER</button>
                 <button id="btn-host" class="btn blue mb-2">HOST CO-OP</button>
                 <button id="btn-join" class="btn purple">JOIN CO-OP</button>
@@ -212,7 +174,7 @@
         <div id="lobby-screen" class="overlay hidden">
             <h1 class="title-text text-blue-400">CO-OP LOBBY</h1>
             <p class="mb-4">Give this exact Room ID to your partner:</p>
-            <div id="lobby-code" class="text-xs text-yellow-400 mb-8 break-all bg-gray-800 p-4 rounded border-2 border-gray-600 select-all font-sans">Generating...</div>
+            <div id="lobby-code" class="text-xs text-yellow-400 mb-8 break-all bg-gray-800 p-4 rounded border-2 border-gray-600 select-all font-sans">Connecting...</div>
             <p class="text-green-400 animate-pulse mb-8">Waiting for player 2 to join...</p>
             <button id="btn-cancel-host" class="btn text-sm p-3">CANCEL</button>
         </div>
@@ -226,21 +188,6 @@
             <button id="btn-connect" class="btn purple mb-4">CONNECT</button>
             <button id="btn-cancel-join" class="btn text-sm p-3">CANCEL</button>
         </div>
-
-        <!-- Game Over Screen -->
-        <div id="game-over-screen" class="overlay hidden">
-            <h1 class="title-text text-red-500">GAME OVER</h1>
-            <p class="text-xl mb-4">FINAL SCORE: <span id="finalScoreVal">0</span></p>
-            <button id="btn-restart" class="btn">PLAY AGAIN</button>
-        </div>
-    </div>
-
-    <div id="mobile-controls">
-        <div class="flex gap-4">
-            <button id="left-btn" class="control-btn">◀</button>
-            <button id="right-btn" class="control-btn">▶</button>
-        </div>
-        <button id="shoot-btn" class="control-btn">FIRE</button>
     </div>
 
     <script>
@@ -252,18 +199,35 @@
         let isHost = false;
 
         function initMultiplayer() {
+            // Hard safety timer: If server signals take more than 2 seconds, drop the loading text and unlock menus automatically
+            setTimeout(() => {
+                showMenu();
+            }, 2000);
+
             try {
-                // Leaving Peer parameters empty lets the server assign an absolute unique safe ID
-                peer = new Peer({ debug: 1 });
+                if (typeof Peer === 'undefined') {
+                    console.warn("PeerJS library script failed to parse. Opening fallback mode.");
+                    showMenu();
+                    return;
+                }
+
+                // Initializing using secure cloud configuration mappings
+                peer = new Peer({
+                    host: '0.peerjs.com',
+                    secure: true,
+                    port: 443,
+                    debug: 1
+                });
 
                 peer.on('open', (id) => {
-                    console.log('Successfully active on PeerJS Cloud. ID:', id);
-                    document.getElementById('lobby-code').innerText = id;
+                    console.log('Connected to handshaking broker. ID:', id);
+                    const codeDisplay = document.getElementById('lobby-code');
+                    if(codeDisplay) codeDisplay.innerText = id;
                     showMenu();
                 });
 
                 peer.on('error', (err) => {
-                    console.error('Handshake Error:', err);
+                    console.error('Signalling Connection Flagged:', err);
                     showMenu(); 
                 });
 
@@ -273,9 +237,35 @@
                 });
 
             } catch (e) {
-                console.error("Crash fallback mode activated.", e);
+                console.error("Critical execution catch block hit.", e);
                 showMenu();
             }
         }
 
         function showMenu() {
+            if(authLoading) authLoading.classList.add('hidden');
+            if(menuButtons) {
+                menuButtons.classList.remove('hidden');
+                menuButtons.style.setProperty('display', 'flex', 'important');
+            }
+        }
+
+        // --- Action Bindings ---
+        document.getElementById('btn-single').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.add('hidden');
+            startGame(false);
+        });
+
+        document.getElementById('btn-host').addEventListener('click', () => {
+            isHost = true;
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-join').addEventListener('click', () => {
+            isHost = false;
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('join-screen').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-cancel-host').addEventListener('click', () => {
